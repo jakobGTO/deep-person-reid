@@ -7,6 +7,8 @@ import os
 import os.path as osp
 import random
 import copy
+from black import delimiter_split
+import numpy as np
 
 from torchreid.data import ImageDataset
 import torchreid
@@ -33,79 +35,64 @@ class NewDataset(ImageDataset):
         #   camid=0 in train refers to the same camera as camid=0
         #   in query/gallery).
         
-        # Uncomment for all cams
-        '''        cams = os.listdir("D:/thesis-data/SYSU-MM01")
-        train = []
-        query = []
-        gallery = []
-
-        camid = 0
-        for cam in cams:
-            pid = 0
-            persons = os.listdir("D:/thesis-data/SYSU-MM01/" + cam)
-            for person in persons:
-                images = os.listdir("D:/thesis-data/SYSU-MM01/" + cam + "/" + person)
-                for img in images:
-                    rn = random.uniform(0,1)
-                    if rn < 0.66 and rn > 0:
-                        train.append((
-                            "D:/thesis-data/SYSU-MM01/" + cam + "/" + person + "/" + img, 
-                            pid, 
-                            camid
-                            ))
-                    elif rn < 79 and rn > 0.66:
-                        query.append((
-                            "D:/thesis-data/SYSU-MM01/" + cam + "/" + person + "/" + img, 
-                            pid, 
-                            camid
-                            ))
-                    else:
-                        gallery.append((
-                            "D:/thesis-data/SYSU-MM01/" + cam + "/" + person + "/" + img, 
-                            pid, 
-                            camid
-                            ))
-
-                pid += 1
-            camid += 1'''
-
         # Only using thermal cam
         cams = os.listdir("D:/thesis-data/SYSU-MM01")
         train = []
         query = []
         gallery = []
+        all_pids = []
 
+        # Extract all unique ids in dataset
         for cam in cams:
-            if cam == 'cam6':
+            if cam == 'cam3' or cam == 'cam6':
+                camid = 0 if cam == 'cam3' else 1
                 persons = os.listdir("D:/thesis-data/SYSU-MM01/" + cam)
-                pid = 0
-                camid = 0
                 for person in persons:
                     images = os.listdir("D:/thesis-data/SYSU-MM01/" + cam + "/" + person)
-                    for img in images:
-                        query.append((
-                            "D:/thesis-data/SYSU-MM01/" + cam + "/" + person + "/" + img, 
-                            pid, 
-                            camid
-                            ))
-                    pid += 1
-            elif cam == 'cam3':
-                persons = os.listdir("D:/thesis-data/SYSU-MM01/" + cam)
-                pid = 0
-                camid = 1
+                    pid = int(person)
+                    all_pids.append(pid)
+                    
+        unique_pids = list(set(all_pids))
+        unique_pids.sort()
 
+        # Split train and test set based on only unique pids, thus an id cannot be in both train and test set
+        random.shuffle(unique_pids)
+        train_pids = unique_pids[:int(len(unique_pids) * 0.8)]
+        test_pids = unique_pids[int(len(unique_pids) * 0.8):]
+
+        # Reset mapping
+        train_hash =  {k : i for i,k in enumerate(train_pids)}
+        test_hash = {k : i for i,k in enumerate(test_pids)}
+
+        # Add image path, id, and camid to train, query and gallery set
+        for cam in cams:
+            if cam == 'cam3' or cam == 'cam6':
+                camid = 0 if cam == 'cam3' else 1
+                persons = os.listdir("D:/thesis-data/SYSU-MM01/" + cam)
                 for person in persons:
                     images = os.listdir("D:/thesis-data/SYSU-MM01/" + cam + "/" + person)
-                    for img in images:
-                        gallery.append((
-                            "D:/thesis-data/SYSU-MM01/" + cam + "/" + person + "/" + img, 
-                            pid, 
-                            camid
+                    pid = int(person)                    
+                    for image in images:
+                        if pid in train_pids:
+                            train.append((
+                                "D:/thesis-data/SYSU-MM01/" + cam + "/" + person + "/" + image,
+                                train_hash[pid],
+                                camid 
                             ))
-                    pid += 1
+                        else:
+                            if camid == 0:
+                                query.append((
+                                    "D:/thesis-data/SYSU-MM01/" + cam + "/" + person + "/" + image,
+                                    test_hash[pid],
+                                    camid 
+                                ))  
+                            else:
+                                gallery.append((
+                                "D:/thesis-data/SYSU-MM01/" + cam + "/" + person + "/" + image,
+                                test_hash[pid],
+                                camid 
+                            ))
 
-        
-        train = copy.deepcopy(query) + copy.deepcopy(gallery)
 
         super(NewDataset, self).__init__(train, query, gallery, **kwargs)
 
@@ -119,9 +106,12 @@ if __name__ == '__main__':
         height=256,
         width=128,
         batch_size_train=32,
-        batch_size_test=100,
+        batch_size_test=32,
+        combineall=False,
         transforms=['random_flip', 'random_crop']
     )
+    
+    
     model = torchreid.models.build_model(
         name='resnet50',
         num_classes=datamanager.num_train_pids,
@@ -154,7 +144,9 @@ if __name__ == '__main__':
     engine.run(
         save_dir='log/resnet50',
         max_epoch=60,
-        eval_freq=10,
+        start_eval = 1,
+        eval_freq=1,
         print_freq=10,
-        test_only=False
-    )
+        test_only=False,
+        )
+    
