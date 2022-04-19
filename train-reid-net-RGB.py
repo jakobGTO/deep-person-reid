@@ -19,7 +19,7 @@ class NewDataset(ImageDataset):
     def __init__(self, root='', **kwargs):
         self.root = osp.abspath(osp.expanduser(root))
         self.dataset_dir = osp.join(self.root, self.dataset_dir)
-
+        ##
         # All you need to do here is to generate three lists,
         # which are train, query and gallery.
         # Each list contains tuples of (img_path, pid, camid),

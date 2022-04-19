@@ -59,7 +59,7 @@ class NewDataset(ImageDataset):
         random.shuffle(unique_pids)
         train_pids = unique_pids[:int(len(unique_pids) * 0.8)]
         test_pids = unique_pids[int(len(unique_pids) * 0.8):]
-
+        ##
         # Reset mapping
         train_hash =  {k : i for i,k in enumerate(train_pids)}
         test_hash = {k : i for i,k in enumerate(test_pids)}
