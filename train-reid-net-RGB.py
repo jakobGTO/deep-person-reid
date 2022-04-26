@@ -9,7 +9,7 @@ import random
 import copy
 from black import delimiter_split
 import numpy as np
-
+import torch
 from torchreid.data import ImageDataset
 import torchreid
 
@@ -66,8 +66,8 @@ class NewDataset(ImageDataset):
 
         # Split train and test set based on only unique pids, thus an id cannot be in both train and test set
         random.shuffle(unique_pids)
-        train_pids = unique_pids[:int(len(unique_pids) * 0.8)]
-        test_pids = unique_pids[int(len(unique_pids) * 0.8):]
+        train_pids = unique_pids[:int(len(unique_pids) * 0.5)]
+        test_pids = unique_pids[int(len(unique_pids) * 0.5):]
 
         # Reset mapping
         train_hash =  {k : i for i,k in enumerate(train_pids)}
@@ -98,7 +98,7 @@ class NewDataset(ImageDataset):
                                 camid 
                             ))
                         else:
-                            if camid == 0 or camid == 1:
+                            if camid == 0 or camid == 3:
                                 query.append((
                                     "D:/thesis-data/SYSU-MM01/" + cam + "/" + person + "/" + image,
                                     test_hash[pid],
@@ -109,24 +109,23 @@ class NewDataset(ImageDataset):
                                 "D:/thesis-data/SYSU-MM01/" + cam + "/" + person + "/" + image,
                                 test_hash[pid],
                                 camid 
-                            ))
+                                ))
 
 
         super(NewDataset, self).__init__(train, query, gallery, **kwargs)
 
 if __name__ == '__main__':
+    torch.cuda.empty_cache()
     torchreid.data.register_image_dataset('SYSU-MM01', NewDataset)
 
     datamanager = torchreid.data.ImageDataManager(
         root='reid-data',
         sources='SYSU-MM01',
         targets='SYSU-MM01',
-        height=256,
-        width=128,
-        batch_size_train=32,
-        batch_size_test=32,
-        combineall=False,
-        transforms=['random_flip', 'random_crop']
+        batch_size_train=8,
+        batch_size_test=8,
+        combineall=False
+        #transforms=['random_flip', 'random_crop']
     )
     
     
@@ -142,7 +141,7 @@ if __name__ == '__main__':
     optimizer = torchreid.optim.build_optimizer(
         model,
         optim='adam',
-        lr=0.0003
+        lr=0.0001
     )
 
     scheduler = torchreid.optim.build_lr_scheduler(
@@ -160,7 +159,7 @@ if __name__ == '__main__':
     )
 
     engine.run(
-        save_dir='log/resnet50',
+        save_dir='log-rgb/resnet50',
         max_epoch=60,
         start_eval = 1,
         eval_freq=1,

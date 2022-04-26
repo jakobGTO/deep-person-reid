@@ -111,7 +111,6 @@ if __name__ == '__main__':
         transforms=['random_flip', 'random_crop']
     )
     
-    
     model = torchreid.models.build_model(
         name='resnet50',
         num_classes=datamanager.num_train_pids,
@@ -143,10 +142,10 @@ if __name__ == '__main__':
 
     engine.run(
         save_dir='log/resnet50',
-        max_epoch=60,
-        start_eval = 1,
+        max_epoch=100,
+        start_eval=1,
         eval_freq=1,
-        print_freq=10,
+        print_freq=394,
         test_only=False,
         )
     
